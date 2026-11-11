@@ -25,11 +25,11 @@ object CameraSettings {
     }
 
     suspend fun readStartupMode(context: Context): String =
-        context.cameraSettingsDataStore.data.map { it[startupModeKey] ?: "AI" }.first()
+        context.cameraSettingsDataStore.data.map { it[startupModeKey] ?: "VIVID" }.first()
 
     suspend fun writeStartupMode(context: Context, mode: String) {
         val allowed = setOf("AI", "VIVID", "NORMAL", "PORTRAIT")
-        context.cameraSettingsDataStore.edit { it[startupModeKey] = if (mode in allowed) mode else "AI" }
+        context.cameraSettingsDataStore.edit { it[startupModeKey] = if (mode in allowed) mode else "VIVID" }
     }
 
     suspend fun readPortraitBlur(context: Context): Float =
