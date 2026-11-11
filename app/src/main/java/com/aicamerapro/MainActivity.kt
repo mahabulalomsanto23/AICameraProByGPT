@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit
 class MainActivity : AppCompatActivity() {
     private val worker: ExecutorService = Executors.newSingleThreadExecutor()
     private lateinit var preview: PreviewView
-    private lateinit var photo: CompareView
+    private lateinit var photo: ImageView
     private lateinit var capture: ImageCapture
     private lateinit var status: TextView
     private lateinit var intensityLabel: TextView
@@ -112,86 +112,123 @@ class MainActivity : AppCompatActivity() {
         TextView(this).apply { this.text = text; textSize = size; setTextColor(color); if (bold) typeface = Typeface.create("sans-serif", Typeface.BOLD) }
 
     private fun buildInterface() {
+        window.statusBarColor = Color.BLACK
+        window.navigationBarColor = Color.BLACK
+        window.decorView.systemUiVisibility = 0
+
         val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(12), dp(18), dp(12))
-            background = gradient(Color.rgb(9,11,24), Color.rgb(23,17,48), 0)
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(8), dp(12), dp(10))
+            setBackgroundColor(Color.BLACK)
         }
-        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        brand.addView(label("✦ AI CAMERA PRO", 21f, Color.WHITE, true))
-        brand.addView(label("PROFESSIONAL PHOTOGRAPHY ENGINE", 9f, 0xFFAEA4D6.toInt(), true))
-        header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(label("● OFFLINE", 10f, 0xFF4CFFC1.toInt(), true))
-        root.addView(header); root.addView(space(10))
-        val frame = FrameLayout(this).apply { background = gradient(0xFF241E45.toInt(), 0xFF0C1123.toInt(), 26); clipToOutline = true }
+
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        top.addView(label("AI Camera", 18f, Color.WHITE, true), LinearLayout.LayoutParams(0, dp(48), 1f))
+        flashButton = action(if (flashEnabled) "⚡" else "⚡", 0xFF252525.toInt()) { toggleFlash() }
+        top.addView(flashButton, LinearLayout.LayoutParams(dp(44), dp(40)).apply { marginEnd = dp(8) })
+        top.addView(action("⚙", 0xFF252525.toInt()) { showSaveSettings() }, LinearLayout.LayoutParams(dp(44), dp(40)))
+        root.addView(top)
+
+        val frame = FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
+            clipToOutline = true
+        }
         preview = PreviewView(this).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
         preview.setOnTouchListener { _, event ->
             if (event.action == android.view.MotionEvent.ACTION_UP) {
-                val camera = boundCamera
-                if (camera != null) {
+                boundCamera?.let { camera ->
                     val point = preview.meteringPointFactory.createPoint(event.x, event.y)
-                    val action = FocusMeteringAction.Builder(point)
-                        .setAutoCancelDuration(3, TimeUnit.SECONDS)
-                        .build()
-                    camera.cameraControl.startFocusAndMetering(action)
-                    status.text = "Tap-to-focus • Exposure metering"
+                    camera.cameraControl.startFocusAndMetering(
+                        FocusMeteringAction.Builder(point).setAutoCancelDuration(3, TimeUnit.SECONDS).build()
+                    )
                 }
                 true
             } else true
         }
-        photo = CompareView(this).apply { visibility = View.GONE; setBackgroundColor(Color.BLACK) }
-        frame.addView(preview, FrameLayout.LayoutParams(-1,-1))
-        frame.addView(photo, FrameLayout.LayoutParams(-1,-1))
-        val hint = label("LIVE CAMERA  •  VIVID AI", 10f, Color.WHITE, true).apply {
-            setPadding(dp(12),dp(8),dp(12),dp(8)); background = gradient(0xCC7C4DFF.toInt(),0xCC00B8D4.toInt(),20)
+        photo = ImageView(this).apply {
+            visibility = View.GONE
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setBackgroundColor(Color.BLACK)
         }
-        frame.addView(hint, FrameLayout.LayoutParams(-2,-2,Gravity.TOP or Gravity.START).apply { setMargins(dp(12),dp(12),0,0) })
-        root.addView(frame, LinearLayout.LayoutParams(-1,0,1f)); root.addView(space(12))
-        status = label("Ready • AI mode selected",12f,0xFFBFB7DC.toInt()); root.addView(status); root.addView(space(8))
-        val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12),dp(10),dp(12),dp(10)); background = gradient(0xFF211B3E.toInt(),0xFF161C34.toInt(),20) }
-        card.addView(label("COLOR SCIENCE",10f,0xFF00E5FF.toInt(),true))
-        modeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        addMode("AI AUTO",EnhanceMode.AI,0xFF8B5CF6.toInt())
-        addMode("VIVID+",EnhanceMode.VIVID,0xFFFF4FA3.toInt())
-        addMode("PORTRAIT",EnhanceMode.PORTRAIT,0xFF00BCD4.toInt())
-        addMode("NORMAL",EnhanceMode.NORMAL,0xFF65708A.toInt())
-        card.addView(modeRow); root.addView(card); root.addView(space(8))
-        val cameraControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        cameraControls.addView(action("↻  FLIP CAMERA", 0xFF35415F.toInt()) { switchCamera() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginEnd = dp(5) })
-        flashButton = action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF35415F.toInt()) { toggleFlash() }
-        cameraControls.addView(flashButton, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5); marginEnd = dp(5) })
-        cameraControls.addView(action("⚙ SETTINGS", 0xFF5A347F.toInt()) { showSaveSettings() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5) })
-        root.addView(cameraControls); root.addView(space(6))
-        blurPresetButton = action("✦  FOUR PORTRAIT BLUR PRESETS",0xFF663D9B.toInt()) { showBlurPresets() }; blurPresetButton.visibility = View.GONE
-        root.addView(blurPresetButton, LinearLayout.LayoutParams(-1,dp(36)))
-        root.addView(space(6))
-        buildCameraAdjustments(root)
+        frame.addView(preview, FrameLayout.LayoutParams(-1, -1))
+        frame.addView(photo, FrameLayout.LayoutParams(-1, -1))
+        root.addView(frame, LinearLayout.LayoutParams(-1, 0, 1f).apply {
+            topMargin = dp(6)
+            bottomMargin = dp(10)
+        })
+
+        status = label("Ready", 12f, 0xFFBDBDBD.toInt())
+        status.gravity = Gravity.CENTER
+        root.addView(status, LinearLayout.LayoutParams(-1, dp(28)))
+
+        modeRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        addMode("AI", EnhanceMode.AI, 0xFF555555.toInt())
+        addMode("VIVID+", EnhanceMode.VIVID, 0xFFFF4081.toInt())
+        addMode("PORTRAIT", EnhanceMode.PORTRAIT, 0xFF555555.toInt())
+        addMode("NATURAL", EnhanceMode.NORMAL, 0xFF555555.toInt())
+        root.addView(modeRow, LinearLayout.LayoutParams(-1, dp(46)))
+        
         val sliderHead = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        intensityTitle = label("VIBRANCE POWER",10f,0xFFBFB7DC.toInt(),true); sliderHead.addView(intensityTitle,LinearLayout.LayoutParams(0,-2,1f))
-        intensityLabel = label("50%",12f,0xFF00E5FF.toInt(),true); sliderHead.addView(intensityLabel); root.addView(sliderHead)
+        intensityTitle = label("COLOR INTENSITY", 10f, 0xFFBDBDBD.toInt(), true)
+        sliderHead.addView(intensityTitle, LinearLayout.LayoutParams(0, -2, 1f))
+        intensityLabel = label("${(intensity * 100).toInt()}%", 11f, Color.WHITE, true)
+        sliderHead.addView(intensityLabel)
+        root.addView(sliderHead)
         val slider = SeekBar(this).apply {
-            max = 100; progress = 50
-            progressTintList = android.content.res.ColorStateList.valueOf(0xFFFF4FA3.toInt())
-            thumbTintList = android.content.res.ColorStateList.valueOf(0xFF00E5FF.toInt())
-            setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
-                    intensity = p / 100f; intensityLabel.text = "$p%"
+            max = 100
+            progress = (intensity * 100).toInt()
+            progressTintList = android.content.res.ColorStateList.valueOf(0xFFFF4081.toInt())
+            thumbTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seek: SeekBar?, value: Int, fromUser: Boolean) {
+                    intensity = value / 100f
+                    intensityLabel.text = "$value%"
                     if (fromUser) original?.let { process(it) }
                 }
-                override fun onStartTrackingTouch(s: SeekBar?) {}
-                override fun onStopTrackingTouch(s: SeekBar?) {}
+                override fun onStartTrackingTouch(seek: SeekBar?) {}
+                override fun onStopTrackingTouch(seek: SeekBar?) {}
             })
         }
-        root.addView(slider); root.addView(space(8))
-        val actions = LinearLayout(this).apply { gravity = Gravity.CENTER; orientation = LinearLayout.HORIZONTAL }
-        actions.addView(action("GALLERY",0xFF303B5B.toInt()) { picker.launch("image/*") },LinearLayout.LayoutParams(0,dp(48),1f).apply { marginEnd=dp(6) })
-        actions.addView(action("●  CAPTURE",0xFF8B35E8.toInt()) { takePhoto() },LinearLayout.LayoutParams(0,dp(54),1.35f).apply { marginStart=dp(6); marginEnd=dp(6) })
-        actions.addView(action("SAVE",0xFF007F83.toInt()) { savePhoto() },LinearLayout.LayoutParams(0,dp(48),1f).apply { marginStart=dp(6) })
-        root.addView(actions); root.addView(space(8))
-        root.addView(label("↔  DRAG DIVIDER TO COMPARE • TAP TOGGLE ORIGINAL",10f,0xFF00E5FF.toInt(),true).apply {
-            gravity=Gravity.CENTER; setPadding(0,dp(8),0,dp(4)); setOnClickListener { toggleCompare() }
-        })
-        setContentView(root); refreshModes()
+        root.addView(slider, LinearLayout.LayoutParams(-1, dp(34)))
+
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, dp(5), 0, 0)
+        }
+        actions.addView(action("Gallery", 0xFF292929.toInt()) { picker.launch("image/*") },
+            LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginEnd = dp(12) })
+        actions.addView(action("●", 0xFFFF4081.toInt()) { takePhoto() },
+            LinearLayout.LayoutParams(dp(68), dp(60)))
+        actions.addView(action("Flip", 0xFF292929.toInt()) { switchCamera() },
+            LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginStart = dp(12) })
+        root.addView(actions)
+
+        val photoActions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        photoActions.addView(action("Retake", 0xFF292929.toInt()) {
+            photo.visibility = View.GONE
+            preview.visibility = View.VISIBLE
+            original = null
+            enhanced = null
+            status.text = "Ready"
+        }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginEnd = dp(6) })
+        photoActions.addView(action("Save", 0xFFFF4081.toInt()) { savePhoto() },
+            LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginStart = dp(6) })
+        root.addView(photoActions)
+        blurPresetButton = action("Portrait blur presets", 0xFF292929.toInt()) { showBlurPresets() }
+        blurPresetButton.visibility = View.GONE
+
+        setContentView(root)
+        refreshModes()
     }
 
     private fun space(height: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(1,dp(height)) }
@@ -327,7 +364,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { if(bitmap!=null) { sourceExifUri = uri; sourceExifFile = null; showPhoto(bitmap) } else status.text="Could not open this photo" }
         }
     }
-    private fun showPhoto(bitmap: Bitmap) { original=bitmap; enhanced=null; photo.setImages(bitmap, null); photo.visibility=View.VISIBLE; preview.visibility=View.GONE; showingOriginal=false; process(bitmap) }
+    private fun showPhoto(bitmap: Bitmap) { original=bitmap; enhanced=null; photo.setImageBitmap(bitmap); photo.visibility=View.VISIBLE; preview.visibility=View.GONE; showingOriginal=false; process(bitmap) }
     private fun process(bitmap: Bitmap) {
         status.text="Enhancing colors • "+currentMode.name+"…"
         val settings=EnhanceSettings(mode=currentMode,intensity=intensity,warmth=0.10f,contrast=1.10f+intensity*0.12f)
@@ -337,7 +374,7 @@ class MainActivity : AppCompatActivity() {
                 { result ->
                     runOnUiThread {
                         enhanced = result
-                        photo.setImages(original, result)
+                        photo.setImageBitmap(result)
                         showingOriginal = false
                         status.text = "✦ Portrait enhanced • Offline AI segmentation"
                     }
@@ -347,7 +384,7 @@ class MainActivity : AppCompatActivity() {
                         status.text = "Portrait model unavailable • Using safe AI enhancement"
                         worker.execute {
                             val fallback = VividProcessor.enhance(bitmap, settings.copy(mode = EnhanceMode.AI))
-                            runOnUiThread { enhanced = fallback; photo.setImages(original, fallback) }
+                            runOnUiThread { enhanced = fallback; photo.setImageBitmap(fallback) }
                         }
                     }
                 }
@@ -360,7 +397,7 @@ class MainActivity : AppCompatActivity() {
                         val result = VividProcessor.enhance(bitmap, SceneAnalyzer.tune(settings, profile))
                         runOnUiThread {
                             enhanced = result
-                            photo.setImages(original, result)
+                            photo.setImageBitmap(result)
                             showingOriginal = false
                             status.text = "✦ AI scene: " + profile.name.lowercase().replaceFirstChar { it.uppercase() } + " • Adaptive enhancement"
                         }
@@ -369,7 +406,7 @@ class MainActivity : AppCompatActivity() {
                 {
                     worker.execute {
                         val result = VividProcessor.enhance(bitmap, settings)
-                        runOnUiThread { enhanced = result; photo.setImages(original, result); showingOriginal = false; status.text = "✦ AI fallback enhancement • Offline" }
+                        runOnUiThread { enhanced = result; photo.setImageBitmap(result); showingOriginal = false; status.text = "✦ AI fallback enhancement • Offline" }
                     }
                 }
             )
@@ -379,12 +416,6 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread { enhanced=result; photo.setImages(original, result); showingOriginal=false; status.text="✦ Enhanced • "+result.width+" × "+result.height+" • On-device" }
             }
         }
-    }
-    private fun toggleCompare() {
-        val before=original ?: run { status.text="Capture or open a photo to compare"; return }
-        val after=enhanced ?: return
-        showingOriginal=!showingOriginal; photo.showOriginalOnly(showingOriginal)
-        status.text=if(showingOriginal) "NORMAL • Tap compare to see VIVID result" else "ENHANCED • Tap compare to see ORIGINAL"
     }
     private fun showSaveSettings() {
         val choices = arrayOf("Image saving preference", "Default startup mode", "Default portrait blur", "Flash on launch")
