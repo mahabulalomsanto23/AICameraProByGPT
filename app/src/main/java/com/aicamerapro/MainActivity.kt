@@ -188,6 +188,7 @@ class MainActivity : AppCompatActivity() {
             val active=(i==0 && currentMode==EnhanceMode.AI)||(i==1 && currentMode==EnhanceMode.VIVID)||(i==2 && currentMode==EnhanceMode.PORTRAIT)||(i==3 && currentMode==EnhanceMode.NORMAL)
             modeRow.getChildAt(i).alpha=if(active) 1f else 0.48f
         }
+        if (::blurPresetButton.isInitialized) blurPresetButton.visibility = if (currentMode == EnhanceMode.PORTRAIT) View.VISIBLE else View.GONE
     }
     private fun buildCameraAdjustments(root: LinearLayout) {
         fun adjustmentRow(title: String, initial: Int, onChange: (Int) -> Unit) {
