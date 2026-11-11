@@ -16,6 +16,14 @@ object VividProcessor {
         val input = IntArray(w * h)
         source.getPixels(input, 0, w, 0, 0, w, h)
         val output = IntArray(input.size)
+        val luminance = FloatArray(input.size)
+        for (i in input.indices) {
+            val c = input[i]
+            val r = (c shr 16 and 255) / 255f
+            val g = (c shr 8 and 255) / 255f
+            val b = (c and 255) / 255f
+            luminance[i] = 0.2126f * r + 0.7152f * g + 0.0722f * b
+        }
         var lumSum = 0.0
         var satSum = 0.0
         val step = max(1, input.size / 12000)
@@ -46,7 +54,15 @@ object VividProcessor {
             var r = (c shr 16 and 255) / 255f
             var g = (c shr 8 and 255) / 255f
             var b = (c and 255) / 255f
-            val y = 0.2126f * r + 0.7152f * g + 0.0722f * b
+            val y = luminance[i]
+            val x = i % w
+            val py = i / w
+            val left = luminance[py * w + max(0, x - 1)]
+            val right = luminance[py * w + min(w - 1, x + 1)]
+            val up = luminance[max(0, py - 1) * w + x]
+            val down = luminance[min(h - 1, py + 1) * w + x]
+            val localAverage = (left + right + up + down) * 0.25f
+            val localDetail = (y - localAverage) * 0.16f * settings.intensity
             val mx = max(r, max(g, b))
             val mn = min(r, min(g, b))
             val sat = if (mx <= 0f) 0f else (mx - mn) / mx
@@ -56,9 +72,9 @@ object VividProcessor {
             g = (mid + (g - mid) * contrast) * factor
             b = (mid + (b - mid) * contrast) * factor - warm * 0.060f
             val shadow = (0.34f - y).coerceAtLeast(0f) * 0.045f * settings.intensity
-            r += shadow
-            g += shadow
-            b += shadow
+            r += shadow + localDetail
+            g += shadow + localDetail
+            b += shadow + localDetail
             fun roll(v: Float): Float {
                 val x = v.coerceAtLeast(0f)
                 return if (x > 0.88f) 0.88f + (x - 0.88f) * 0.55f else x
