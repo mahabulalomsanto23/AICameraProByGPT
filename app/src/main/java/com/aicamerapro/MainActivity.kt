@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat
 import com.aicamerapro.processing.EnhanceMode
 import com.aicamerapro.processing.EnhanceSettings
 import com.aicamerapro.processing.VividProcessor
+import com.aicamerapro.processing.PortraitProcessor
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -175,9 +176,32 @@ class MainActivity : AppCompatActivity() {
     private fun process(bitmap: Bitmap) {
         status.text="Enhancing colors • "+currentMode.name+"…"
         val settings=EnhanceSettings(mode=currentMode,intensity=intensity,warmth=0.10f,contrast=1.10f+intensity*0.12f)
-        worker.execute {
-            val result=VividProcessor.enhance(bitmap,settings)
-            runOnUiThread { enhanced=result; photo.setImageBitmap(result); showingOriginal=false; status.text="✦ Enhanced • "+result.width+" × "+result.height+" • On-device" }
+        if (currentMode == EnhanceMode.PORTRAIT) {
+            status.text = "AI subject detection • Portrait blur…"
+            PortraitProcessor.enhance(bitmap, settings, intensity,
+                { result ->
+                    runOnUiThread {
+                        enhanced = result
+                        photo.setImageBitmap(result)
+                        showingOriginal = false
+                        status.text = "✦ Portrait enhanced • Offline AI segmentation"
+                    }
+                },
+                { error ->
+                    runOnUiThread {
+                        status.text = "Portrait model unavailable • Using safe AI enhancement"
+                        worker.execute {
+                            val fallback = VividProcessor.enhance(bitmap, settings.copy(mode = EnhanceMode.AI))
+                            runOnUiThread { enhanced = fallback; photo.setImageBitmap(fallback) }
+                        }
+                    }
+                }
+            )
+        } else {
+            worker.execute {
+                val result=VividProcessor.enhance(bitmap,settings)
+                runOnUiThread { enhanced=result; photo.setImageBitmap(result); showingOriginal=false; status.text="✦ Enhanced • "+result.width+" × "+result.height+" • On-device" }
+            }
         }
     }
     private fun toggleCompare() {
