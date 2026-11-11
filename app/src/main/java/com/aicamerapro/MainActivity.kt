@@ -43,7 +43,7 @@ import java.util.concurrent.Executors
 class MainActivity : AppCompatActivity() {
     private val worker: ExecutorService = Executors.newSingleThreadExecutor()
     private lateinit var preview: PreviewView
-    private lateinit var photo: ImageView
+    private lateinit var photo: CompareView
     private lateinit var capture: ImageCapture
     private lateinit var status: TextView
     private lateinit var intensityLabel: TextView
@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(header); root.addView(space(10))
         val frame = FrameLayout(this).apply { background = gradient(0xFF241E45.toInt(), 0xFF0C1123.toInt(), 26); clipToOutline = true }
         preview = PreviewView(this).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
-        photo = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; visibility = View.GONE; setBackgroundColor(Color.BLACK) }
+        photo = CompareView(this).apply { visibility = View.GONE; setBackgroundColor(Color.BLACK) }
         frame.addView(preview, FrameLayout.LayoutParams(-1,-1))
         frame.addView(photo, FrameLayout.LayoutParams(-1,-1))
         val hint = label("LIVE CAMERA  •  VIVID AI", 10f, Color.WHITE, true).apply {
@@ -145,7 +145,7 @@ class MainActivity : AppCompatActivity() {
         actions.addView(action("●  CAPTURE",0xFF8B35E8.toInt()) { takePhoto() },LinearLayout.LayoutParams(0,dp(54),1.35f).apply { marginStart=dp(6); marginEnd=dp(6) })
         actions.addView(action("SAVE",0xFF007F83.toInt()) { savePhoto() },LinearLayout.LayoutParams(0,dp(48),1f).apply { marginStart=dp(6) })
         root.addView(actions); root.addView(space(8))
-        root.addView(label("↔  TAP HERE TO COMPARE ORIGINAL / ENHANCED",10f,0xFF00E5FF.toInt(),true).apply {
+        root.addView(label("↔  DRAG DIVIDER TO COMPARE • TAP TOGGLE ORIGINAL",10f,0xFF00E5FF.toInt(),true).apply {
             gravity=Gravity.CENTER; setPadding(0,dp(8),0,dp(4)); setOnClickListener { toggleCompare() }
         })
         setContentView(root); refreshModes()
@@ -281,7 +281,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { if(bitmap!=null) showPhoto(bitmap) else status.text="Could not open this photo" }
         }
     }
-    private fun showPhoto(bitmap: Bitmap) { original=bitmap; photo.visibility=View.VISIBLE; preview.visibility=View.GONE; showingOriginal=false; process(bitmap) }
+    private fun showPhoto(bitmap: Bitmap) { original=bitmap; enhanced=null; photo.setImages(bitmap, null); photo.visibility=View.VISIBLE; preview.visibility=View.GONE; showingOriginal=false; process(bitmap) }
     private fun process(bitmap: Bitmap) {
         status.text="Enhancing colors • "+currentMode.name+"…"
         val settings=EnhanceSettings(mode=currentMode,intensity=intensity,warmth=0.10f,contrast=1.10f+intensity*0.12f)
@@ -291,7 +291,7 @@ class MainActivity : AppCompatActivity() {
                 { result ->
                     runOnUiThread {
                         enhanced = result
-                        photo.setImageBitmap(result)
+                        photo.setImages(original, result)
                         showingOriginal = false
                         status.text = "✦ Portrait enhanced • Offline AI segmentation"
                     }
@@ -301,7 +301,7 @@ class MainActivity : AppCompatActivity() {
                         status.text = "Portrait model unavailable • Using safe AI enhancement"
                         worker.execute {
                             val fallback = VividProcessor.enhance(bitmap, settings.copy(mode = EnhanceMode.AI))
-                            runOnUiThread { enhanced = fallback; photo.setImageBitmap(fallback) }
+                            runOnUiThread { enhanced = fallback; photo.setImages(original, fallback) }
                         }
                     }
                 }
@@ -314,7 +314,7 @@ class MainActivity : AppCompatActivity() {
                         val result = VividProcessor.enhance(bitmap, SceneAnalyzer.tune(settings, profile))
                         runOnUiThread {
                             enhanced = result
-                            photo.setImageBitmap(result)
+                            photo.setImages(original, result)
                             showingOriginal = false
                             status.text = "✦ AI scene: " + profile.name.lowercase().replaceFirstChar { it.uppercase() } + " • Adaptive enhancement"
                         }
@@ -323,21 +323,21 @@ class MainActivity : AppCompatActivity() {
                 {
                     worker.execute {
                         val result = VividProcessor.enhance(bitmap, settings)
-                        runOnUiThread { enhanced = result; photo.setImageBitmap(result); showingOriginal = false; status.text = "✦ AI fallback enhancement • Offline" }
+                        runOnUiThread { enhanced = result; photo.setImages(original, result); showingOriginal = false; status.text = "✦ AI fallback enhancement • Offline" }
                     }
                 }
             )
         } else {
             worker.execute {
                 val result=VividProcessor.enhance(bitmap,settings)
-                runOnUiThread { enhanced=result; photo.setImageBitmap(result); showingOriginal=false; status.text="✦ Enhanced • "+result.width+" × "+result.height+" • On-device" }
+                runOnUiThread { enhanced=result; photo.setImages(original, result); showingOriginal=false; status.text="✦ Enhanced • "+result.width+" × "+result.height+" • On-device" }
             }
         }
     }
     private fun toggleCompare() {
         val before=original ?: run { status.text="Capture or open a photo to compare"; return }
         val after=enhanced ?: return
-        showingOriginal=!showingOriginal; photo.setImageBitmap(if(showingOriginal) before else after)
+        showingOriginal=!showingOriginal; photo.showOriginalOnly(showingOriginal)
         status.text=if(showingOriginal) "NORMAL • Tap compare to see VIVID result" else "ENHANCED • Tap compare to see ORIGINAL"
     }
     private fun showSaveSettings() {
