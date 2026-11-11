@@ -363,9 +363,21 @@ class MainActivity : AppCompatActivity() {
         status.text=if(showingOriginal) "NORMAL • Tap compare to see VIVID result" else "ENHANCED • Tap compare to see ORIGINAL"
     }
     private fun showSaveSettings() {
+        val choices = arrayOf("Image saving preference", "Default startup mode", "Default portrait blur", "Flash on launch")
+        AlertDialog.Builder(this).setTitle("Camera settings")
+            .setItems(choices) { _, which ->
+                when (which) {
+                    0 -> showSaveModeSetting()
+                    1 -> showStartupModeSetting()
+                    2 -> showDefaultBlurSetting()
+                    3 -> showFlashPreferenceSetting()
+                }
+            }.setNegativeButton("CLOSE", null).show()
+    }
+
+    private fun showSaveModeSetting() {
         val choices = arrayOf("Original + Enhanced", "Enhanced Only")
-        AlertDialog.Builder(this)
-            .setTitle("Image saving preference")
+        AlertDialog.Builder(this).setTitle("Image saving preference")
             .setSingleChoiceItems(choices, if (saveMode == "both") 0 else 1) { dialog, which ->
                 val selected = if (which == 0) "both" else "enhanced"
                 lifecycleScope.launch {
@@ -374,9 +386,49 @@ class MainActivity : AppCompatActivity() {
                     status.text = "Save preference: " + choices[which]
                 }
                 dialog.dismiss()
-            }
-            .setNegativeButton("CANCEL", null)
-            .show()
+            }.setNegativeButton("CANCEL", null).show()
+    }
+
+    private fun showStartupModeSetting() {
+        val modes = arrayOf("AI", "VIVID", "NORMAL", "PORTRAIT")
+        AlertDialog.Builder(this).setTitle("Default startup mode")
+            .setSingleChoiceItems(modes, modes.indexOf(currentMode.name).coerceAtLeast(0)) { dialog, which ->
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) { CameraSettings.writeStartupMode(this@MainActivity, modes[which]) }
+                    status.text = "Startup mode saved: " + modes[which]
+                }
+                dialog.dismiss()
+            }.setNegativeButton("CANCEL", null).show()
+    }
+
+    private fun showDefaultBlurSetting() {
+        val labels = arrayOf("Natural", "Medium", "Strong", "Maximum")
+        val values = floatArrayOf(0.25f, 0.50f, 0.75f, 1f)
+        val selected = values.indices.minByOrNull { kotlin.math.abs(values[it] - intensity) } ?: 1
+        AlertDialog.Builder(this).setTitle("Default portrait blur")
+            .setSingleChoiceItems(labels, selected) { dialog, which ->
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) { CameraSettings.writePortraitBlur(this@MainActivity, values[which]) }
+                    intensity = values[which]
+                    intensityLabel.text = "${(intensity * 100).toInt()}%"
+                    status.text = "Portrait blur preference saved"
+                }
+                dialog.dismiss()
+            }.setNegativeButton("CANCEL", null).show()
+    }
+
+    private fun showFlashPreferenceSetting() {
+        val choices = arrayOf("Flash off", "Flash on")
+        AlertDialog.Builder(this).setTitle("Flash on launch")
+            .setSingleChoiceItems(choices, if (flashEnabled) 1 else 0) { dialog, which ->
+                flashEnabled = which == 1
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) { CameraSettings.writeFlashEnabled(this@MainActivity, flashEnabled) }
+                    if (cameraProvider != null) bindCamera()
+                    status.text = "Flash preference saved"
+                }
+                dialog.dismiss()
+            }.setNegativeButton("CANCEL", null).show()
     }
 
     private fun copySourceExifTo(target: File) {
