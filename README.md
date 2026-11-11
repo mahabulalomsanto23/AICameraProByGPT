@@ -7,7 +7,8 @@ Kotlin / CameraX Android app targeting Android 8.0+ (API 26), with OnePlus 8 / S
 - CameraX live preview and full-quality still capture.
 - Four modes: Normal, Vivid, AI, Portrait; AI is selected by default.
 - Colorful dark premium-style camera UI with gradient panels and distinct mode colors.
-- Front/rear camera switching and rear flash control.
+- Front/rear camera switching, rear flash control, tap-to-focus, exposure compensation and zoom.
+- DataStore preferences for saving mode, startup mode, portrait blur strength and flash-on-launch.
 - Gallery import, draggable before/after wipe comparison, original/enhanced toggle, and JPEG save to `Pictures/AI Camera Pro`.
 - Tap-to-focus metering, exposure compensation and digital zoom controls.
 - Basic EXIF capture metadata preservation (date/time, camera make/model and selected exposure tags; GPS is intentionally not copied).
@@ -27,7 +28,7 @@ These bundled artifacts include their model assets in the app at build time. Ima
 
 ## Build verification
 
-GitHub Actions uses JDK 17 and Gradle 8.7 to verify `assembleDebug` and `assembleRelease`. The workflow uploads the installable debug APK as a 14-day GitHub Actions artifact; it does not publish a public release. Build verification is separate from physical-device testing.
+GitHub Actions uses JDK 17 and Gradle 8.7 to verify `assembleDebug` and `assembleRelease`. The workflow compiles debug and release variants and uploads the installable debug APK as a 14-day GitHub Actions artifact; it does not publish a public release. Build verification is separate from physical-device testing.
 
 ## Remaining work versus the full product specification
 
