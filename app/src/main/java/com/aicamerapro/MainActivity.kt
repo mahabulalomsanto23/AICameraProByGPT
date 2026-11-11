@@ -47,6 +47,9 @@ class MainActivity : AppCompatActivity() {
     private var intensity = 0.78f
     private var showingOriginal = false
     private var cameraBound = false
+    private var cameraProvider: ProcessCameraProvider? = null
+    private var lensFacing = CameraSelector.LENS_FACING_BACK
+    private var flashEnabled = false
 
     private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         if (it) startCamera() else status.text = "Camera permission is needed to take photos"
@@ -98,7 +101,11 @@ class MainActivity : AppCompatActivity() {
         addMode("VIVID+",EnhanceMode.VIVID,0xFFFF4FA3.toInt())
         addMode("PORTRAIT",EnhanceMode.PORTRAIT,0xFF00BCD4.toInt())
         addMode("NORMAL",EnhanceMode.NORMAL,0xFF65708A.toInt())
-        card.addView(modeRow); root.addView(card); root.addView(space(10))
+        card.addView(modeRow); root.addView(card); root.addView(space(8))
+        val cameraControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+        cameraControls.addView(action("↻  FLIP CAMERA", 0xFF35415F.toInt()) { switchCamera() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginEnd = dp(5) })
+        cameraControls.addView(action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF35415F.toInt()) { toggleFlash() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5) })
+        root.addView(cameraControls); root.addView(space(8))
         val sliderHead = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         sliderHead.addView(label("VIBRANCE POWER",10f,0xFFBFB7DC.toInt(),true),LinearLayout.LayoutParams(0,-2,1f))
         intensityLabel = label("78%",12f,0xFF00E5FF.toInt(),true); sliderHead.addView(intensityLabel); root.addView(sliderHead)
@@ -147,13 +154,40 @@ class MainActivity : AppCompatActivity() {
     private fun startCamera() {
         val future=ProcessCameraProvider.getInstance(this)
         future.addListener({
-            val provider=future.get()
-            val p=Preview.Builder().build().also { it.setSurfaceProvider(preview.surfaceProvider) }
-            capture=ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY).build()
-            try { provider.unbindAll(); provider.bindToLifecycle(this,CameraSelector.DEFAULT_BACK_CAMERA,p,capture); cameraBound=true }
-            catch(e: Exception) { status.text="Camera unavailable: "+e.localizedMessage }
+            cameraProvider = future.get()
+            bindCamera()
         },ContextCompat.getMainExecutor(this))
     }
+    private fun bindCamera() {
+        val provider = cameraProvider ?: return
+        val selector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
+        val cameraPreview = Preview.Builder().build().also { it.setSurfaceProvider(preview.surfaceProvider) }
+        capture = ImageCapture.Builder()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+            .setFlashMode(if (flashEnabled && lensFacing == CameraSelector.LENS_FACING_BACK) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF)
+            .build()
+        try {
+            provider.unbindAll()
+            provider.bindToLifecycle(this, selector, cameraPreview, capture)
+            cameraBound = true
+            status.text = if (lensFacing == CameraSelector.LENS_FACING_BACK) "Rear camera ready • AI mode" else "Front camera ready • AI mode"
+        } catch (e: Exception) {
+            cameraBound = false
+            status.text = "Camera unavailable: " + e.localizedMessage
+        }
+    }
+
+    private fun switchCamera() {
+        lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
+        if (cameraProvider != null) bindCamera()
+    }
+
+    private fun toggleFlash() {
+        flashEnabled = !flashEnabled
+        if (cameraProvider != null && lensFacing == CameraSelector.LENS_FACING_BACK) bindCamera()
+        status.text = if (flashEnabled) "Flash enabled for rear camera" else "Flash disabled"
+    }
+
     private fun takePhoto() {
         if(!cameraBound) { status.text="Camera is starting…"; return }
         status.text="Capturing full-resolution photo…"
