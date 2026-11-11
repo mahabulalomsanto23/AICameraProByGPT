@@ -489,7 +489,7 @@ class MainActivity : AppCompatActivity() {
             }
             val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
             val ok = try {
-                contentResolver.openOutputStream(uri)?.use { output -> temp.inputStream().use { it.copyTo(output) } } == true
+                contentResolver.openOutputStream(uri)?.use { output -> temp.inputStream().use { it.copyTo(output) }; true } == true
             } catch (_: Exception) { false }
             if (!ok) contentResolver.delete(uri, null, null)
             return ok
