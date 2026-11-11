@@ -33,4 +33,6 @@ dependencies {
     // Bundled ML Kit selfie-segmentation model: available offline after installation.
     implementation("com.google.mlkit:segmentation-selfie:16.0.0-beta6")
     implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 }
