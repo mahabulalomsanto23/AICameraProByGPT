@@ -20,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -55,6 +56,7 @@ class MainActivity : AppCompatActivity() {
     private var showingOriginal = false
     private var cameraBound = false
     private var cameraProvider: ProcessCameraProvider? = null
+    private var boundCamera: Camera? = null
     private var lensFacing = CameraSelector.LENS_FACING_BACK
     private var flashEnabled = false
     private var saveMode = "both"
@@ -117,7 +119,10 @@ class MainActivity : AppCompatActivity() {
         cameraControls.addView(action("↻  FLIP CAMERA", 0xFF35415F.toInt()) { switchCamera() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginEnd = dp(5) })
         cameraControls.addView(action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF35415F.toInt()) { toggleFlash() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5); marginEnd = dp(5) })
         cameraControls.addView(action("⚙ SETTINGS", 0xFF5A347F.toInt()) { showSaveSettings() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5) })
-        root.addView(cameraControls); root.addView(space(8))
+        root.addView(cameraControls); root.addView(space(6))
+        root.addView(action("✦  FOUR PORTRAIT BLUR PRESETS",0xFF663D9B.toInt()) { showBlurPresets() }, LinearLayout.LayoutParams(-1,dp(36)))
+        root.addView(space(6))
+        buildCameraAdjustments(root)
         val sliderHead = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         intensityTitle = label("VIBRANCE POWER",10f,0xFFBFB7DC.toInt(),true); sliderHead.addView(intensityTitle,LinearLayout.LayoutParams(0,-2,1f))
         intensityLabel = label("78%",12f,0xFF00E5FF.toInt(),true); sliderHead.addView(intensityLabel); root.addView(sliderHead)
@@ -163,6 +168,63 @@ class MainActivity : AppCompatActivity() {
             modeRow.getChildAt(i).alpha=if(active) 1f else 0.48f
         }
     }
+    private fun buildCameraAdjustments(root: LinearLayout) {
+        fun adjustmentRow(title: String, initial: Int, onChange: (Int) -> Unit) {
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            row.addView(label(title,9f,0xFFBFB7DC.toInt(),true), LinearLayout.LayoutParams(dp(82),-2))
+            val seek = SeekBar(this).apply {
+                max = 100; progress = initial
+                progressTintList = android.content.res.ColorStateList.valueOf(0xFF00E5FF.toInt())
+                thumbTintList = android.content.res.ColorStateList.valueOf(0xFFFF4FA3.toInt())
+                setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) { if (fromUser) onChange(p) }
+                    override fun onStartTrackingTouch(s: SeekBar?) {}
+                    override fun onStopTrackingTouch(s: SeekBar?) {}
+                })
+            }
+            row.addView(seek, LinearLayout.LayoutParams(0,dp(32),1f))
+            root.addView(row)
+        }
+        adjustmentRow("EXPOSURE",50) { value ->
+            val camera = boundCamera ?: return@adjustmentRow
+            val range = camera.cameraInfo.exposureState.exposureCompensationRange
+            val index = range.lower + ((range.upper - range.lower) * value / 100f).toInt()
+            camera.cameraControl.setExposureCompensationIndex(index)
+            status.text = "Exposure compensation: $index"
+        }
+        adjustmentRow("ZOOM",0) { value ->
+            val camera = boundCamera ?: return@adjustmentRow
+            val maxZoom = camera.cameraInfo.zoomState.value?.maxZoomRatio ?: 1f
+            val ratio = 1f + (maxZoom - 1f) * value / 100f
+            camera.cameraControl.setZoomRatio(ratio)
+            status.text = "Camera zoom: %.1fx".format(Locale.US, ratio)
+        }
+        root.addView(space(4))
+    }
+
+    private fun syncCameraControls() {
+        boundCamera?.cameraControl?.setExposureCompensationIndex(0)
+        boundCamera?.cameraControl?.setZoomRatio(1f)
+    }
+
+    private fun showBlurPresets() {
+        val names = arrayOf("Natural  •  25%", "Medium  •  50%", "Strong  •  75%", "Maximum  •  100%")
+        val values = floatArrayOf(0.25f, 0.50f, 0.75f, 1.0f)
+        AlertDialog.Builder(this)
+            .setTitle("Portrait background blur")
+            .setItems(names) { dialog, which ->
+                currentMode = EnhanceMode.PORTRAIT
+                intensity = values[which]
+                intensityTitle.text = "BACKGROUND BLUR"
+                intensityLabel.text = "${(intensity * 100).toInt()}%"
+                refreshModes()
+                original?.let { process(it) }
+                dialog.dismiss()
+            }
+            .setNegativeButton("CANCEL", null)
+            .show()
+    }
+
     private fun startCamera() {
         val future=ProcessCameraProvider.getInstance(this)
         future.addListener({
@@ -180,8 +242,9 @@ class MainActivity : AppCompatActivity() {
             .build()
         try {
             provider.unbindAll()
-            provider.bindToLifecycle(this, selector, cameraPreview, capture)
+            boundCamera = provider.bindToLifecycle(this, selector, cameraPreview, capture)
             cameraBound = true
+            syncCameraControls()
             status.text = if (lensFacing == CameraSelector.LENS_FACING_BACK) "Rear camera ready • AI mode" else "Front camera ready • AI mode"
         } catch (e: Exception) {
             cameraBound = false
@@ -328,5 +391,5 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    override fun onDestroy() { worker.shutdown(); super.onDestroy() }
+    override fun onDestroy() { worker.shutdown(); SceneAnalyzer.close(); PortraitProcessor.close(); super.onDestroy() }
 }
