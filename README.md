@@ -8,7 +8,9 @@ Kotlin / CameraX Android app targeting Android 8.0+ (API 26), with OnePlus 8 / S
 - Four modes: Normal, Vivid, AI, Portrait; AI is selected by default.
 - Colorful dark premium-style camera UI with gradient panels and distinct mode colors.
 - Front/rear camera switching and rear flash control.
-- Gallery import, original/enhanced preview toggle, and JPEG save to `Pictures/AI Camera Pro`.
+- Gallery import, draggable before/after wipe comparison, original/enhanced toggle, and JPEG save to `Pictures/AI Camera Pro`.
+- Tap-to-focus metering, exposure compensation and digital zoom controls.
+- Basic EXIF capture metadata preservation (date/time, camera make/model and selected exposure tags; GPS is intentionally not copied).
 - DataStore-backed saving preference: Original + Enhanced (default) or Enhanced Only.
 - Vivid and AI image-wide computational color enhancement.
 - **AI mode:** bundled on-device ML Kit Image Labeling model classifies broad image content (people, outdoor/nature, food, general) and selects conservative scene-tuning parameters.
@@ -25,19 +27,19 @@ These bundled artifacts include their model assets in the app at build time. Ima
 
 ## Build verification
 
-GitHub Actions uses JDK 17 and Gradle 8.7 to verify `assembleDebug` and `assembleRelease`. The workflow does not upload or publish APK artifacts. Build verification is separate from physical-device testing.
+GitHub Actions uses JDK 17 and Gradle 8.7 to verify `assembleDebug` and `assembleRelease`. The workflow uploads the installable debug APK as a 14-day GitHub Actions artifact; it does not publish a public release. Build verification is separate from physical-device testing.
 
 ## Remaining work versus the full product specification
 
 This is an actively developed source project, not yet the complete professional camera system in the supplied specification. Remaining items include:
 
 - More detailed scene and multi-subject understanding; semantic sky, vegetation, skin, hair and object segmentation.
-- Exposure/white-balance estimation, selective LAB/HSL color, local tone mapping and region-aware enhancement.
+- Advanced exposure/white-balance estimation, selective LAB/HSL color, multi-region local tone mapping and semantic region-aware enhancement. A lightweight local-detail contrast pass is implemented.
 - Dedicated denoising, edge-aware sharpening, restoration and upscaling models.
 - Portrait hair-edge refinement and more advanced edge-aware mask refinement. Four selectable blur-strength presets are implemented.
-- Manual ISO/shutter/focus/white-balance controls, resolution and aspect-ratio selection. Exposure compensation and zoom controls are implemented; exact manual sensor controls depend on device Camera2 support.
-- Draggable before/after wipe comparison.
-- EXIF metadata preservation for imported and captured images.
+- Manual ISO/shutter/focus/white-balance controls, resolution and aspect-ratio selection. Tap-to-focus, exposure compensation and zoom are implemented; manual sensor controls depend on device Camera2 support.
+
+- Full EXIF/XMP/GPS preservation and configurable metadata privacy controls.
 - MVVM/StateFlow architecture, bounded processing queue, thermal awareness, automated quality tests.
 - Physical OnePlus 8 testing and measured image-quality/performance results.
 
