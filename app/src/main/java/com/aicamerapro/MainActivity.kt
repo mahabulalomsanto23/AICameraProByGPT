@@ -96,7 +96,7 @@ class MainActivity : AppCompatActivity() {
         addMode("AI AUTO",EnhanceMode.AI,0xFF8B5CF6.toInt())
         addMode("VIVID+",EnhanceMode.VIVID,0xFFFF4FA3.toInt())
         addMode("PORTRAIT",EnhanceMode.PORTRAIT,0xFF00BCD4.toInt())
-        addMode("ORIGINAL",EnhanceMode.ORIGINAL,0xFF65708A.toInt())
+        addMode("NORMAL",EnhanceMode.NORMAL,0xFF65708A.toInt())
         card.addView(modeRow); root.addView(card); root.addView(space(10))
         val sliderHead = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         sliderHead.addView(label("VIBRANCE POWER",10f,0xFFBFB7DC.toInt(),true),LinearLayout.LayoutParams(0,-2,1f))
@@ -139,7 +139,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun refreshModes() {
         for (i in 0 until modeRow.childCount) {
-            val active=(i==0 && currentMode==EnhanceMode.AI)||(i==1 && currentMode==EnhanceMode.VIVID)||(i==2 && currentMode==EnhanceMode.PORTRAIT)||(i==3 && currentMode==EnhanceMode.ORIGINAL)
+            val active=(i==0 && currentMode==EnhanceMode.AI)||(i==1 && currentMode==EnhanceMode.VIVID)||(i==2 && currentMode==EnhanceMode.PORTRAIT)||(i==3 && currentMode==EnhanceMode.NORMAL)
             modeRow.getChildAt(i).alpha=if(active) 1f else 0.48f
         }
     }
@@ -184,7 +184,7 @@ class MainActivity : AppCompatActivity() {
         val before=original ?: run { status.text="Capture or open a photo to compare"; return }
         val after=enhanced ?: return
         showingOriginal=!showingOriginal; photo.setImageBitmap(if(showingOriginal) before else after)
-        status.text=if(showingOriginal) "ORIGINAL • Tap compare to see VIVID result" else "ENHANCED • Tap compare to see ORIGINAL"
+        status.text=if(showingOriginal) "NORMAL • Tap compare to see VIVID result" else "ENHANCED • Tap compare to see ORIGINAL"
     }
     private fun savePhoto() {
         val bitmap=enhanced ?: run { status.text="Capture or open a photo first"; return }
