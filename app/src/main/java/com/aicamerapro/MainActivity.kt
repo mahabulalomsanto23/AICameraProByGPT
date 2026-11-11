@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
@@ -39,6 +40,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     private val worker: ExecutorService = Executors.newSingleThreadExecutor()
@@ -98,6 +100,20 @@ class MainActivity : AppCompatActivity() {
         root.addView(header); root.addView(space(10))
         val frame = FrameLayout(this).apply { background = gradient(0xFF241E45.toInt(), 0xFF0C1123.toInt(), 26); clipToOutline = true }
         preview = PreviewView(this).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
+        preview.setOnTouchListener { _, event ->
+            if (event.action == android.view.MotionEvent.ACTION_UP) {
+                val camera = boundCamera
+                if (camera != null) {
+                    val point = preview.meteringPointFactory.createPoint(event.x, event.y)
+                    val action = FocusMeteringAction.Builder(point)
+                        .setAutoCancelDuration(3, TimeUnit.SECONDS)
+                        .build()
+                    camera.cameraControl.startFocusAndMetering(action)
+                    status.text = "Tap-to-focus • Exposure metering"
+                }
+                true
+            } else true
+        }
         photo = CompareView(this).apply { visibility = View.GONE; setBackgroundColor(Color.BLACK) }
         frame.addView(preview, FrameLayout.LayoutParams(-1,-1))
         frame.addView(photo, FrameLayout.LayoutParams(-1,-1))
