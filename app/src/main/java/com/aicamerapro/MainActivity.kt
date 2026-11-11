@@ -78,7 +78,22 @@ class MainActivity : AppCompatActivity() {
         window.navigationBarColor = Color.rgb(9, 11, 24)
         buildInterface()
         lifecycleScope.launch {
-            saveMode = withContext(Dispatchers.IO) { CameraSettings.readSaveMode(this@MainActivity) }
+            val stored = withContext(Dispatchers.IO) {
+                listOf(
+                    CameraSettings.readSaveMode(this@MainActivity),
+                    CameraSettings.readStartupMode(this@MainActivity),
+                    CameraSettings.readPortraitBlur(this@MainActivity).toString(),
+                    CameraSettings.readFlashEnabled(this@MainActivity).toString()
+                )
+            }
+            saveMode = stored[0]
+            currentMode = runCatching { EnhanceMode.valueOf(stored[1]) }.getOrDefault(EnhanceMode.AI)
+            intensity = stored[2].toFloatOrNull()?.coerceIn(0.25f, 1f) ?: 0.50f
+            flashEnabled = stored[3].toBoolean()
+            intensityTitle.text = if (currentMode == EnhanceMode.PORTRAIT) "BACKGROUND BLUR" else "VIBRANCE POWER"
+            intensityLabel.text = "${(intensity * 100).toInt()}%"
+            refreshModes()
+            if (cameraProvider != null) bindCamera()
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) startCamera()
         else cameraPermission.launch(Manifest.permission.CAMERA)
