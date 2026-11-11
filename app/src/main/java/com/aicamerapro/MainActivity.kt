@@ -391,5 +391,5 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    override fun onDestroy() { worker.shutdown(); SceneAnalyzer.close(); PortraitProcessor.close(); super.onDestroy() }
+    override fun onDestroy() { worker.shutdown(); super.onDestroy() }
 }
