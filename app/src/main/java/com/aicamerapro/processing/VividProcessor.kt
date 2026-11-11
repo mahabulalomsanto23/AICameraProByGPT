@@ -46,7 +46,7 @@ object VividProcessor {
             (1.04f + (0.42f - averageSaturation).coerceIn(0f, 0.42f) * 0.32f).coerceIn(1.04f, 1.18f)
         } else 1f
         val exposureGain = (1f + (0.46f - averageLuma) * 0.28f).coerceIn(0.90f, 1.10f)
-        val vividBoost = if (settings.mode == EnhanceMode.VIVID) 1.18f else 1f
+        val vividBoost = if (settings.mode == EnhanceMode.VIVID) 1.32f else 1f
         val vibrance = (1f + settings.intensity.coerceIn(0f, 1f) * 0.62f) * adaptiveBoost * vividBoost
         val contrast = settings.contrast.coerceIn(0.95f, 1.35f) + if (settings.mode == EnhanceMode.AI) 0.015f else 0f
         val warmth = settings.warmth * settings.intensity.coerceIn(0f, 1f)
