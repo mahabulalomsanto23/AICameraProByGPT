@@ -13,12 +13,13 @@ import kotlin.math.min
 /** Offline portrait pipeline backed by ML Kit's bundled selfie-segmentation model. */
 object PortraitProcessor {
     private val executor = Executors.newSingleThreadExecutor()
-    private val segmenter: Segmenter by lazy {
+    private val segmenterLazy = lazy {
         val options = SelfieSegmenterOptions.Builder()
             .setDetectorMode(SelfieSegmenterOptions.SINGLE_IMAGE_MODE)
             .build()
         Segmentation.getClient(options)
     }
+    private val segmenter: Segmenter by segmenterLazy
 
     fun enhance(
         source: Bitmap,
@@ -82,7 +83,7 @@ object PortraitProcessor {
     }
 
     fun close() {
-        if (this::class.java.desiredAssertionStatus()) return
+        if (segmenterLazy.isInitialized()) segmenter.close()
         executor.shutdown()
     }
 }
