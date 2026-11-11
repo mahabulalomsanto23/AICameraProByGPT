@@ -30,4 +30,6 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$cameraX")
     implementation("androidx.camera:camera-lifecycle:$cameraX")
     implementation("androidx.camera:camera-view:$cameraX")
+    // Bundled ML Kit selfie-segmentation model: available offline after installation.
+    implementation("com.google.mlkit:segmentation-selfie:16.0.0-beta6")
 }
