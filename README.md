@@ -9,6 +9,7 @@ Kotlin / CameraX Android app targeting Android 8.0+ (API 26), with OnePlus 8 / S
 - Colorful dark premium-style camera UI with gradient panels and distinct mode colors.
 - Front/rear camera switching and rear flash control.
 - Gallery import, original/enhanced preview toggle, and JPEG save to `Pictures/AI Camera Pro`.
+- DataStore-backed saving preference: Original + Enhanced (default) or Enhanced Only.
 - Vivid and AI image-wide computational color enhancement.
 - **AI mode:** bundled on-device ML Kit Image Labeling model classifies broad image content (people, outdoor/nature, food, general) and selects conservative scene-tuning parameters.
 - **Portrait mode:** bundled on-device ML Kit Selfie Segmentation model creates a foreground confidence mask; background blur is composited behind the detected person. If inference fails, the app falls back to safe global enhancement.
