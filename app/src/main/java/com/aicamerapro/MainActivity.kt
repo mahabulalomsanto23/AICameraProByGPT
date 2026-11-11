@@ -29,6 +29,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import androidx.exifinterface.media.ExifInterface
 import com.aicamerapro.processing.EnhanceMode
 import com.aicamerapro.processing.EnhanceSettings
 import com.aicamerapro.processing.VividProcessor
@@ -62,6 +63,8 @@ class MainActivity : AppCompatActivity() {
     private var lensFacing = CameraSelector.LENS_FACING_BACK
     private var flashEnabled = false
     private var saveMode = "both"
+    private var sourceExifUri: Uri? = null
+    private var sourceExifFile: File? = null
 
     private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         if (it) startCamera() else status.text = "Camera permission is needed to take photos"
@@ -286,7 +289,7 @@ class MainActivity : AppCompatActivity() {
         capture.takePicture(ImageCapture.OutputFileOptions.Builder(file).build(),ContextCompat.getMainExecutor(this),object: ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(result: ImageCapture.OutputFileResults) {
                 val bitmap=BitmapFactory.decodeFile(file.absolutePath)
-                if(bitmap!=null) { showPhoto(bitmap); file.delete() } else status.text="Could not read captured image"
+                if(bitmap!=null) { sourceExifFile = file; sourceExifUri = null; showPhoto(bitmap) } else status.text="Could not read captured image"
             }
             override fun onError(exception: ImageCaptureException) { status.text="Capture failed: "+exception.message }
         })
@@ -294,7 +297,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadPhoto(uri: Uri) {
         worker.execute {
             val bitmap=contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
-            runOnUiThread { if(bitmap!=null) showPhoto(bitmap) else status.text="Could not open this photo" }
+            runOnUiThread { if(bitmap!=null) { sourceExifUri = uri; sourceExifFile = null; showPhoto(bitmap) } else status.text="Could not open this photo" }
         }
     }
     private fun showPhoto(bitmap: Bitmap) { original=bitmap; enhanced=null; photo.setImages(bitmap, null); photo.visibility=View.VISIBLE; preview.visibility=View.GONE; showingOriginal=false; process(bitmap) }
@@ -373,18 +376,46 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun copySourceExifTo(target: File) {
+        val source = try {
+            sourceExifFile?.takeIf { it.exists() }?.let { ExifInterface(it.absolutePath) }
+                ?: sourceExifUri?.let { uri -> contentResolver.openInputStream(uri)?.use { ExifInterface(it) } }
+        } catch (_: Exception) { null } ?: return
+        val output = ExifInterface(target.absolutePath)
+        val tags = arrayOf(
+            ExifInterface.TAG_DATETIME, ExifInterface.TAG_DATETIME_ORIGINAL,
+            ExifInterface.TAG_MAKE, ExifInterface.TAG_MODEL,
+            ExifInterface.TAG_F_NUMBER, ExifInterface.TAG_EXPOSURE_TIME,
+            ExifInterface.TAG_FOCAL_LENGTH, ExifInterface.TAG_ISO_SPEED_RATINGS,
+            ExifInterface.TAG_WHITE_BALANCE, ExifInterface.TAG_FLASH
+        )
+        tags.forEach { tag -> source.getAttribute(tag)?.let { output.setAttribute(tag, it) } }
+        output.saveAttributes()
+    }
+
     private fun writeBitmapToGallery(bitmap: Bitmap, name: String): Boolean {
-        val values = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, name)
-            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/AI Camera Pro")
+        val temp = File(cacheDir, name)
+        try {
+            temp.outputStream().use { output ->
+                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 96, output)) return false
+            }
+            copySourceExifTo(temp)
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, name)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/AI Camera Pro")
+            }
+            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
+            val ok = try {
+                contentResolver.openOutputStream(uri)?.use { output -> temp.inputStream().use { it.copyTo(output) } } == true
+            } catch (_: Exception) { false }
+            if (!ok) contentResolver.delete(uri, null, null)
+            return ok
+        } catch (_: Exception) {
+            return false
+        } finally {
+            temp.delete()
         }
-        val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
-        val ok = try {
-            contentResolver.openOutputStream(uri)?.use { it -> bitmap.compress(Bitmap.CompressFormat.JPEG, 96, it) } == true
-        } catch (_: Exception) { false }
-        if (!ok) contentResolver.delete(uri, null, null)
-        return ok
     }
 
     private fun savePhoto() {
