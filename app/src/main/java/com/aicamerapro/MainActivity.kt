@@ -56,8 +56,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var flashButton: TextView
     private var original: Bitmap? = null
     private var enhanced: Bitmap? = null
-    private var currentMode = EnhanceMode.AI
-    private var intensity = 0.50f
+    private var currentMode = EnhanceMode.VIVID
+    private var intensity = 0.72f
     private var showingOriginal = false
     private var cameraBound = false
     private var cameraProvider: ProcessCameraProvider? = null
@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
     private var lensFacing = CameraSelector.LENS_FACING_BACK
     private var flashEnabled = false
     private var saveMode = "both"
-    private var startupMode = "AI"
+    private var startupMode = "VIVID"
     private var defaultPortraitBlur = 0.50f
     private var sourceExifUri: Uri? = null
     private var sourceExifFile: File? = null
@@ -91,11 +91,11 @@ class MainActivity : AppCompatActivity() {
             }
             saveMode = stored[0]
             startupMode = stored[1]
-            currentMode = runCatching { EnhanceMode.valueOf(startupMode) }.getOrDefault(EnhanceMode.AI)
+            currentMode = runCatching { EnhanceMode.valueOf(startupMode) }.getOrDefault(EnhanceMode.VIVID)
             defaultPortraitBlur = stored[2].toFloatOrNull()?.coerceIn(0.25f, 1f) ?: 0.50f
-            intensity = defaultPortraitBlur
+            intensity = if (currentMode == EnhanceMode.PORTRAIT) defaultPortraitBlur else 0.72f
             flashEnabled = stored[3].toBoolean()
-            flashButton.text = if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF"
+            flashButton.text = if (flashEnabled) "⚡" else "⚡"
             intensityTitle.text = if (currentMode == EnhanceMode.PORTRAIT) "BACKGROUND BLUR" else "VIBRANCE POWER"
             intensityLabel.text = "${(intensity * 100).toInt()}%"
             refreshModes()
@@ -413,7 +413,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             worker.execute {
                 val result=VividProcessor.enhance(bitmap,settings)
-                runOnUiThread { enhanced=result; photo.setImages(original, result); showingOriginal=false; status.text="✦ Enhanced • "+result.width+" × "+result.height+" • On-device" }
+                runOnUiThread { enhanced=result; photo.setImageBitmap(result); showingOriginal=false; status.text="✦ Enhanced • "+result.width+" × "+result.height+" • On-device" }
             }
         }
     }
