@@ -35,4 +35,5 @@ dependencies {
     implementation("com.google.mlkit:image-labeling:17.0.9")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 }
