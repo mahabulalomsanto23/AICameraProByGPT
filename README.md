@@ -34,10 +34,10 @@ This is an actively developed source project, not yet the complete professional 
 - More detailed scene and multi-subject understanding; semantic sky, vegetation, skin, hair and object segmentation.
 - Exposure/white-balance estimation, selective LAB/HSL color, local tone mapping and region-aware enhancement.
 - Dedicated denoising, edge-aware sharpening, restoration and upscaling models.
-- Portrait hair-edge refinement and selectable Natural/Medium/Strong/Maximum blur presets.
-- Manual exposure/ISO/shutter/focus/white-balance controls, resolution and aspect-ratio selection.
+- Portrait hair-edge refinement and more advanced edge-aware mask refinement. Four selectable blur-strength presets are implemented.
+- Manual ISO/shutter/focus/white-balance controls, resolution and aspect-ratio selection. Exposure compensation and zoom controls are implemented; exact manual sensor controls depend on device Camera2 support.
 - Draggable before/after wipe comparison.
-- Original + Enhanced / Enhanced Only save preference, EXIF preservation and DataStore-backed settings.
+- EXIF metadata preservation for imported and captured images.
 - MVVM/StateFlow architecture, bounded processing queue, thermal awareness, automated quality tests.
 - Physical OnePlus 8 testing and measured image-quality/performance results.
 
