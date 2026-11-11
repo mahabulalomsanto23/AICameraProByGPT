@@ -54,6 +54,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var modeRow: LinearLayout
     private lateinit var blurPresetButton: TextView
     private lateinit var flashButton: TextView
+    private lateinit var cameraActions: LinearLayout
+    private lateinit var photoActions: LinearLayout
     private var original: Bitmap? = null
     private var enhanced: Bitmap? = null
     private var currentMode = EnhanceMode.VIVID
@@ -197,32 +199,35 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(slider, LinearLayout.LayoutParams(-1, dp(34)))
 
-        val actions = LinearLayout(this).apply {
+        cameraActions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(0, dp(5), 0, 0)
         }
-        actions.addView(action("Gallery", 0xFF292929.toInt()) { picker.launch("image/*") },
+        cameraActions.addView(action("Gallery", 0xFF292929.toInt()) { picker.launch("image/*") },
             LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginEnd = dp(12) })
-        actions.addView(action("●", 0xFFFF4081.toInt()) { takePhoto() },
+        cameraActions.addView(action("●", 0xFFFF4081.toInt()) { takePhoto() },
             LinearLayout.LayoutParams(dp(68), dp(60)))
-        actions.addView(action("Flip", 0xFF292929.toInt()) { switchCamera() },
+        cameraActions.addView(action("Flip", 0xFF292929.toInt()) { switchCamera() },
             LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginStart = dp(12) })
-        root.addView(actions)
+        root.addView(cameraActions)
 
-        val photoActions = LinearLayout(this).apply {
+        photoActions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
         photoActions.addView(action("Retake", 0xFF292929.toInt()) {
             photo.visibility = View.GONE
             preview.visibility = View.VISIBLE
+            photoActions.visibility = View.GONE
+            cameraActions.visibility = View.VISIBLE
             original = null
             enhanced = null
             status.text = "Ready"
         }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginEnd = dp(6) })
         photoActions.addView(action("Save", 0xFFFF4081.toInt()) { savePhoto() },
             LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginStart = dp(6) })
+        photoActions.visibility = View.GONE
         root.addView(photoActions)
         blurPresetButton = action("Portrait blur presets", 0xFF292929.toInt()) { showBlurPresets() }
         blurPresetButton.visibility = View.GONE
@@ -364,7 +369,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { if(bitmap!=null) { sourceExifUri = uri; sourceExifFile = null; showPhoto(bitmap) } else status.text="Could not open this photo" }
         }
     }
-    private fun showPhoto(bitmap: Bitmap) { original=bitmap; enhanced=null; photo.setImageBitmap(bitmap); photo.visibility=View.VISIBLE; preview.visibility=View.GONE; showingOriginal=false; process(bitmap) }
+    private fun showPhoto(bitmap: Bitmap) { original=bitmap; enhanced=null; photo.setImageBitmap(bitmap); photo.visibility=View.VISIBLE; preview.visibility=View.GONE; cameraActions.visibility=View.GONE; photoActions.visibility=View.VISIBLE; showingOriginal=false; process(bitmap) }
     private fun process(bitmap: Bitmap) {
         status.text="Enhancing colors • "+currentMode.name+"…"
         val settings=EnhanceSettings(mode=currentMode,intensity=intensity,warmth=0.10f,contrast=1.10f+intensity*0.12f)
