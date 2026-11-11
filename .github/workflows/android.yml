@@ -1,4 +1,4 @@
-name: Android Build
+name: Android Build Verification
 on:
   push:
     branches: [main]
@@ -19,12 +19,5 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
-      - name: Assemble debug and release
+      - name: Verify debug and release compilation
         run: gradle --no-daemon assembleDebug assembleRelease
-      - name: Upload APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: AI-Camera-Pro-APKs
-          path: app/build/outputs/apk/**/*.apk
-          if-no-files-found: error
-          retention-days: 30
