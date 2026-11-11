@@ -46,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var capture: ImageCapture
     private lateinit var status: TextView
     private lateinit var intensityLabel: TextView
+    private lateinit var intensityTitle: TextView
     private lateinit var modeRow: LinearLayout
     private var original: Bitmap? = null
     private var enhanced: Bitmap? = null
@@ -118,7 +119,7 @@ class MainActivity : AppCompatActivity() {
         cameraControls.addView(action("⚙ SETTINGS", 0xFF5A347F.toInt()) { showSaveSettings() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5) })
         root.addView(cameraControls); root.addView(space(8))
         val sliderHead = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        sliderHead.addView(label("VIBRANCE POWER",10f,0xFFBFB7DC.toInt(),true),LinearLayout.LayoutParams(0,-2,1f))
+        intensityTitle = label("VIBRANCE POWER",10f,0xFFBFB7DC.toInt(),true); sliderHead.addView(intensityTitle,LinearLayout.LayoutParams(0,-2,1f))
         intensityLabel = label("78%",12f,0xFF00E5FF.toInt(),true); sliderHead.addView(intensityLabel); root.addView(sliderHead)
         val slider = SeekBar(this).apply {
             max = 100; progress = 78
@@ -152,7 +153,7 @@ class MainActivity : AppCompatActivity() {
     private fun addMode(title: String,mode: EnhanceMode,color: Int) {
         val view=label(title,9f,Color.WHITE,true).apply {
             gravity=Gravity.CENTER; setPadding(dp(5),dp(12),dp(5),dp(12)); background=gradient(color,0xFF20233C.toInt(),12)
-            setOnClickListener { currentMode=mode; showingOriginal=false; refreshModes(); original?.let { process(it) } }
+            setOnClickListener { currentMode=mode; intensityTitle.text=if(mode==EnhanceMode.PORTRAIT) "BACKGROUND BLUR" else "VIBRANCE POWER"; showingOriginal=false; refreshModes(); original?.let { process(it) } }
         }
         modeRow.addView(view,LinearLayout.LayoutParams(0,dp(44),1f).apply { setMargins(dp(2),dp(8),dp(2),0) })
     }
