@@ -15,6 +15,11 @@ import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -51,6 +56,7 @@ class MainActivity : AppCompatActivity() {
     private var cameraProvider: ProcessCameraProvider? = null
     private var lensFacing = CameraSelector.LENS_FACING_BACK
     private var flashEnabled = false
+    private var saveMode = "both"
 
     private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         if (it) startCamera() else status.text = "Camera permission is needed to take photos"
@@ -62,6 +68,9 @@ class MainActivity : AppCompatActivity() {
         window.statusBarColor = Color.rgb(9, 11, 24)
         window.navigationBarColor = Color.rgb(9, 11, 24)
         buildInterface()
+        lifecycleScope.launch {
+            saveMode = withContext(Dispatchers.IO) { CameraSettings.readSaveMode(this@MainActivity) }
+        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) startCamera()
         else cameraPermission.launch(Manifest.permission.CAMERA)
     }
@@ -105,7 +114,8 @@ class MainActivity : AppCompatActivity() {
         card.addView(modeRow); root.addView(card); root.addView(space(8))
         val cameraControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         cameraControls.addView(action("↻  FLIP CAMERA", 0xFF35415F.toInt()) { switchCamera() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginEnd = dp(5) })
-        cameraControls.addView(action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF35415F.toInt()) { toggleFlash() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5) })
+        cameraControls.addView(action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF35415F.toInt()) { toggleFlash() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5); marginEnd = dp(5) })
+        cameraControls.addView(action("⚙ SETTINGS", 0xFF5A347F.toInt()) { showSaveSettings() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5) })
         root.addView(cameraControls); root.addView(space(8))
         val sliderHead = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         sliderHead.addView(label("VIBRANCE POWER",10f,0xFFBFB7DC.toInt(),true),LinearLayout.LayoutParams(0,-2,1f))
@@ -266,18 +276,55 @@ class MainActivity : AppCompatActivity() {
         showingOriginal=!showingOriginal; photo.setImageBitmap(if(showingOriginal) before else after)
         status.text=if(showingOriginal) "NORMAL • Tap compare to see VIVID result" else "ENHANCED • Tap compare to see ORIGINAL"
     }
-    private fun savePhoto() {
-        val bitmap=enhanced ?: run { status.text="Capture or open a photo first"; return }
-        worker.execute {
-            val name="AICameraPro_"+SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(Date())+".jpg"
-            val values=ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME,name)
-                put(MediaStore.Images.Media.MIME_TYPE,"image/jpeg")
-                put(MediaStore.Images.Media.RELATIVE_PATH,"Pictures/AI Camera Pro")
+    private fun showSaveSettings() {
+        val choices = arrayOf("Original + Enhanced", "Enhanced Only")
+        AlertDialog.Builder(this)
+            .setTitle("Image saving preference")
+            .setSingleChoiceItems(choices, if (saveMode == "both") 0 else 1) { dialog, which ->
+                val selected = if (which == 0) "both" else "enhanced"
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) { CameraSettings.writeSaveMode(this@MainActivity, selected) }
+                    saveMode = selected
+                    status.text = "Save preference: " + choices[which]
+                }
+                dialog.dismiss()
             }
-            val uri=contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values)
-            val ok=uri?.let { contentResolver.openOutputStream(it)?.use { stream -> bitmap.compress(Bitmap.CompressFormat.JPEG,96,stream) } } ?: false
-            runOnUiThread { status.text=if(ok) "Saved to Pictures / AI Camera Pro" else "Could not save photo" }
+            .setNegativeButton("CANCEL", null)
+            .show()
+    }
+
+    private fun writeBitmapToGallery(bitmap: Bitmap, name: String): Boolean {
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, name)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/AI Camera Pro")
+        }
+        val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
+        val ok = try {
+            contentResolver.openOutputStream(uri)?.use { it -> bitmap.compress(Bitmap.CompressFormat.JPEG, 96, it) } == true
+        } catch (_: Exception) { false }
+        if (!ok) contentResolver.delete(uri, null, null)
+        return ok
+    }
+
+    private fun savePhoto() {
+        val bitmap = enhanced ?: run { status.text = "Capture or open a photo first"; return }
+        val originalBitmap = original
+        val selectedMode = saveMode
+        status.text = "Saving photo…"
+        worker.execute {
+            val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val enhancedOk = writeBitmapToGallery(bitmap, "AICameraPro_${stamp}_Enhanced.jpg")
+            val originalOk = if (selectedMode == "both" && originalBitmap != null) {
+                writeBitmapToGallery(originalBitmap, "AICameraPro_${stamp}_Original.jpg")
+            } else true
+            runOnUiThread {
+                status.text = when {
+                    enhancedOk && originalOk && selectedMode == "both" -> "Original + Enhanced saved • Pictures / AI Camera Pro"
+                    enhancedOk && originalOk -> "Enhanced photo saved • Pictures / AI Camera Pro"
+                    else -> "Could not save all selected photos"
+                }
+            }
         }
     }
     override fun onDestroy() { worker.shutdown(); super.onDestroy() }
