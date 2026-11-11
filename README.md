@@ -1,47 +1,49 @@
-# AI Camera Pro — Android source project
+# AI Camera Pro — Android Studio source project
 
-A Kotlin / CameraX Android Studio project targeting Android 8.0+ (API 26), with OnePlus 8 / Snapdragon 865 / Android 13 as the primary device target.
+Kotlin / CameraX Android app targeting Android 8.0+ (API 26), with OnePlus 8 / Snapdragon 865 / Android 13 as the primary device target.
 
-## Current implementation in this repository
+## Implemented
 
-- CameraX rear-camera preview and still capture.
-- Four selectable modes: Normal, Vivid, AI, Portrait; AI is the initial selection.
-- Normal returns the decoded source bitmap unchanged.
-- Vivid applies a stronger vibrance curve than AI.
-- AI currently uses image-wide average luminance and saturation heuristics. It is not a trained scene-understanding model.
-- Portrait currently does not perform person segmentation or depth-aware blur; it falls back to the same global color processor.
-- Adjustable enhancement strength.
-- Import a photo through Android's system photo picker.
-- Before/after toggle (not yet a draggable wipe slider).
-- Save enhanced JPEG to Pictures/AI Camera Pro.
-- No network permission is declared; photos are processed locally.
+- CameraX live preview and full-quality still capture.
+- Four modes: Normal, Vivid, AI, Portrait; AI is selected by default.
+- Colorful dark premium-style camera UI with gradient panels and distinct mode colors.
+- Front/rear camera switching and rear flash control.
+- Gallery import, original/enhanced preview toggle, and JPEG save to `Pictures/AI Camera Pro`.
+- Vivid and AI image-wide computational color enhancement.
+- **AI mode:** bundled on-device ML Kit Image Labeling model classifies broad image content (people, outdoor/nature, food, general) and selects conservative scene-tuning parameters.
+- **Portrait mode:** bundled on-device ML Kit Selfie Segmentation model creates a foreground confidence mask; background blur is composited behind the detected person. If inference fails, the app falls back to safe global enhancement.
+- No network permission is declared. Model inference and photo processing run locally; no cloud, account, or photo upload is used.
+
+## Offline models
+
+The app bundles:
+- `com.google.mlkit:image-labeling:17.0.9` for on-device image labels.
+- `com.google.mlkit:segmentation-selfie:16.0.0-beta6` for human foreground segmentation.
+
+These bundled artifacts include their model assets in the app at build time. Image labeling is a broad 400+ label classifier, not a bespoke photographic scene model. Selfie segmentation detects people; it is not a general-purpose object/depth segmentation model. The scene-specific tuning is deliberately conservative and is not generative image restoration.
 
 ## Build verification
 
-GitHub Actions runs Gradle 8.7 with JDK 17 and verifies both assembleDebug and assembleRelease. The workflow does not publish or attach APK artifacts, in keeping with the source-project-only delivery requirement.
+GitHub Actions uses JDK 17 and Gradle 8.7 to verify `assembleDebug` and `assembleRelease`. The workflow does not upload or publish APK artifacts. Build verification is separate from physical-device testing.
 
-## Requirements from the supplied product specification that remain incomplete
+## Remaining work versus the full product specification
 
-The current repository is an initial camera foundation, not yet the complete project requested in the product specification. Missing or incomplete items include:
+This is an actively developed source project, not yet the complete professional camera system in the supplied specification. Remaining items include:
 
-- Scene and multi-subject understanding across the requested categories.
-- Genuine on-device AI model integration, model assets, model licensing and CPU/GPU/NNAPI delegate selection.
-- Adaptive exposure, white balance, LAB/HSL selective color, local tone mapping and subject-aware processing.
-- Real denoising, edge-aware sharpening, detail restoration and AI upscaling.
-- Face/skin/hair/sky/vegetation segmentation and region-aware enhancement.
-- Portrait segmentation, hair-edge refinement and Natural/Medium/Strong/Maximum computational blur controls.
-- Front/rear camera switch, flash control, camera capability/resolution selection, aspect ratio and manual camera controls.
-- Interactive before/after wipe slider.
-- Original + Enhanced / Enhanced Only saving preferences, metadata preservation and DataStore-backed settings.
-- MVVM/StateFlow architecture, bounded processing queue, thermal awareness and quality validation test suite.
-- Physical OnePlus 8 testing and measured performance/image-quality results.
+- More detailed scene and multi-subject understanding; semantic sky, vegetation, skin, hair and object segmentation.
+- Exposure/white-balance estimation, selective LAB/HSL color, local tone mapping and region-aware enhancement.
+- Dedicated denoising, edge-aware sharpening, restoration and upscaling models.
+- Portrait hair-edge refinement and selectable Natural/Medium/Strong/Maximum blur presets.
+- Manual exposure/ISO/shutter/focus/white-balance controls, resolution and aspect-ratio selection.
+- Draggable before/after wipe comparison.
+- Original + Enhanced / Enhanced Only save preference, EXIF preservation and DataStore-backed settings.
+- MVVM/StateFlow architecture, bounded processing queue, thermal awareness, automated quality tests.
+- Physical OnePlus 8 testing and measured image-quality/performance results.
 
-No neural model or AI capability is claimed unless it is actually integrated and exercised by the application. Physical-device testing must be recorded separately from CI compilation.
+No capability is represented as complete unless it is actually implemented. Physical-device testing must be recorded separately from CI compilation.
 
 ## Development environment
 
-- Android Gradle Plugin 8.5.2
-- Kotlin Android plugin 1.9.24
-- Gradle 8.7
-- JDK 17
+- Android Gradle Plugin 8.5.2 / Kotlin 1.9.24
+- Gradle 8.7 / JDK 17
 - compileSdk 35 / minSdk 26 / targetSdk 35
