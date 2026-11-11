@@ -1,4 +1,4 @@
-name: Android build (installable debug APK)
+name: Android build (OnePlus 8 installable APKs)
 
 on:
   push:
@@ -10,8 +10,9 @@ permissions:
 
 jobs:
   build:
+    name: Build debug and release APKs
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -22,24 +23,37 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Gradle 8.7
+      - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
 
-      - name: Build installable debug APK
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Verify Android build configuration
+        run: |
+          grep -q 'version "8.6.1"' build.gradle.kts
+          grep -q 'include("arm64-v8a")' app/build.gradle.kts
+          grep -q 'signingConfigs.getByName("debug")' app/build.gradle.kts
 
-      - name: Verify APK exists
+      - name: Run lint and unit tests
+        run: |
+          gradle --no-daemon --stacktrace :app:lint
+          gradle --no-daemon --stacktrace :app:testDebugUnitTest
+
+      - name: Build debug and release APKs
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
+
+      - name: Verify APK outputs
         shell: bash
         run: |
-          test -s app/build/outputs/apk/debug/app-debug.apk
-          ls -lh app/build/outputs/apk/debug/app-debug.apk
+          find app/build/outputs/apk -type f -name '*.apk' -size +0c -print
+          test -n "$(find app/build/outputs/apk -type f -name '*.apk' -size +0c -print -quit)"
+          echo "APK outputs:"
+          ls -lh app/build/outputs/apk/*/*.apk
 
-      - name: Upload installable debug APK
+      - name: Upload OnePlus 8 APKs
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Camera-Pro-OnePlus8-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: AI-Camera-Pro-OnePlus8-debug-and-release
+          path: app/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
