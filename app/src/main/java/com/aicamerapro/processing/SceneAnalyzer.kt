@@ -10,7 +10,7 @@ import java.util.concurrent.Executors
 
 /** Bundled on-device image-labeling model used for lightweight scene-aware tuning. */
 object SceneAnalyzer {
-    enum class Profile { PEOPLE, OUTDOOR, FOOD, GENERAL }
+    enum class Profile { PEOPLE, OUTDOOR, SUNSET, NIGHT, INDOOR, FOOD, NATURE, ARCHITECTURE, FLOWERS, ANIMALS, GENERAL }
 
     private val executor = Executors.newSingleThreadExecutor()
     private val labelerLazy = lazy { ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS) }
@@ -30,10 +30,18 @@ object SceneAnalyzer {
                         if (sample !== bitmap) sample.recycle()
                         val names = labels.filter { it.confidence >= 0.45f }
                             .map { it.text.lowercase(Locale.US) }
+                        val has = { terms: Set<String> -> names.any { label -> terms.any { term -> label.contains(term) } } }
                         val profile = when {
-                            names.any { it in setOf("person", "people", "face", "portrait", "human") } -> Profile.PEOPLE
-                            names.any { it in setOf("sky", "landscape", "nature", "plant", "tree", "mountain", "water", "grass", "flower") } -> Profile.OUTDOOR
-                            names.any { it in setOf("food", "dish", "cuisine", "fruit", "meal") } -> Profile.FOOD
+                            has(setOf("person", "people", "face", "portrait", "human")) -> Profile.PEOPLE
+                            has(setOf("sunset", "sunrise", "dusk", "dawn")) -> Profile.SUNSET
+                            has(setOf("night", "darkness", "nighttime", "starry")) -> Profile.NIGHT
+                            has(setOf("food", "dish", "cuisine", "fruit", "meal", "dessert")) -> Profile.FOOD
+                            has(setOf("flower", "blossom", "bouquet")) -> Profile.FLOWERS
+                            has(setOf("animal", "dog", "cat", "bird", "wildlife", "horse")) -> Profile.ANIMALS
+                            has(setOf("building", "architecture", "bridge", "skyscraper", "city")) -> Profile.ARCHITECTURE
+                            has(setOf("indoor", "room", "kitchen", "office", "furniture")) -> Profile.INDOOR
+                            has(setOf("forest", "tree", "plant", "grass", "garden", "vegetation")) -> Profile.NATURE
+                            has(setOf("sky", "landscape", "mountain", "water", "beach", "ocean", "lake")) -> Profile.OUTDOOR
                             else -> Profile.GENERAL
                         }
                         onResult(profile)
@@ -49,9 +57,15 @@ object SceneAnalyzer {
     }
 
     fun tune(settings: EnhanceSettings, profile: Profile): EnhanceSettings = when (profile) {
-        Profile.PEOPLE -> settings.copy(intensity = settings.intensity * 0.82f, warmth = settings.warmth * 0.55f)
-        Profile.OUTDOOR -> settings.copy(intensity = (settings.intensity * 1.08f).coerceAtMost(1f), contrast = settings.contrast + 0.025f)
-        Profile.FOOD -> settings.copy(intensity = (settings.intensity * 1.02f).coerceAtMost(1f), warmth = settings.warmth + 0.055f)
+        Profile.PEOPLE -> settings.copy(intensity = settings.intensity * 0.78f, warmth = settings.warmth * 0.50f, contrast = settings.contrast * 0.97f)
+        Profile.OUTDOOR, Profile.NATURE -> settings.copy(intensity = (settings.intensity * 1.06f).coerceAtMost(1f), contrast = settings.contrast + 0.02f)
+        Profile.SUNSET -> settings.copy(intensity = (settings.intensity * 0.94f).coerceAtMost(1f), warmth = settings.warmth + 0.10f)
+        Profile.NIGHT -> settings.copy(intensity = settings.intensity * 0.70f, contrast = settings.contrast * 0.94f, warmth = settings.warmth * 0.60f)
+        Profile.INDOOR -> settings.copy(intensity = settings.intensity * 0.88f, warmth = settings.warmth * 0.75f)
+        Profile.FOOD -> settings.copy(intensity = (settings.intensity * 0.98f).coerceAtMost(1f), warmth = settings.warmth + 0.045f)
+        Profile.FLOWERS -> settings.copy(intensity = (settings.intensity * 1.02f).coerceAtMost(1f), contrast = settings.contrast + 0.015f)
+        Profile.ANIMALS -> settings.copy(intensity = settings.intensity * 0.92f, contrast = settings.contrast + 0.01f)
+        Profile.ARCHITECTURE -> settings.copy(intensity = settings.intensity * 0.82f, contrast = settings.contrast + 0.025f)
         Profile.GENERAL -> settings
     }
 
