@@ -26,6 +26,7 @@ import com.aicamerapro.processing.EnhanceMode
 import com.aicamerapro.processing.EnhanceSettings
 import com.aicamerapro.processing.VividProcessor
 import com.aicamerapro.processing.PortraitProcessor
+import com.aicamerapro.processing.SceneAnalyzer
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -228,6 +229,27 @@ class MainActivity : AppCompatActivity() {
                             val fallback = VividProcessor.enhance(bitmap, settings.copy(mode = EnhanceMode.AI))
                             runOnUiThread { enhanced = fallback; photo.setImageBitmap(fallback) }
                         }
+                    }
+                }
+            )
+        } else if (currentMode == EnhanceMode.AI) {
+            status.text = "Offline AI • Analyzing scene…"
+            SceneAnalyzer.analyze(bitmap,
+                { profile ->
+                    worker.execute {
+                        val result = VividProcessor.enhance(bitmap, SceneAnalyzer.tune(settings, profile))
+                        runOnUiThread {
+                            enhanced = result
+                            photo.setImageBitmap(result)
+                            showingOriginal = false
+                            status.text = "✦ AI scene: " + profile.name.lowercase().replaceFirstChar { it.uppercase() } + " • Adaptive enhancement"
+                        }
+                    }
+                },
+                {
+                    worker.execute {
+                        val result = VividProcessor.enhance(bitmap, settings)
+                        runOnUiThread { enhanced = result; photo.setImageBitmap(result); showingOriginal = false; status.text = "✦ AI fallback enhancement • Offline" }
                     }
                 }
             )
