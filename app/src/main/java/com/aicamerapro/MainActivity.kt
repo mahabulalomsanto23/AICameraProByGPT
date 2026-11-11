@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var intensityTitle: TextView
     private lateinit var modeRow: LinearLayout
     private lateinit var blurPresetButton: TextView
+    private lateinit var flashButton: TextView
     private var original: Bitmap? = null
     private var enhanced: Bitmap? = null
     private var currentMode = EnhanceMode.AI
@@ -64,6 +65,8 @@ class MainActivity : AppCompatActivity() {
     private var lensFacing = CameraSelector.LENS_FACING_BACK
     private var flashEnabled = false
     private var saveMode = "both"
+    private var startupMode = "AI"
+    private var defaultPortraitBlur = 0.50f
     private var sourceExifUri: Uri? = null
     private var sourceExifFile: File? = null
 
@@ -87,9 +90,12 @@ class MainActivity : AppCompatActivity() {
                 )
             }
             saveMode = stored[0]
-            currentMode = runCatching { EnhanceMode.valueOf(stored[1]) }.getOrDefault(EnhanceMode.AI)
-            intensity = stored[2].toFloatOrNull()?.coerceIn(0.25f, 1f) ?: 0.50f
+            startupMode = stored[1]
+            currentMode = runCatching { EnhanceMode.valueOf(startupMode) }.getOrDefault(EnhanceMode.AI)
+            defaultPortraitBlur = stored[2].toFloatOrNull()?.coerceIn(0.25f, 1f) ?: 0.50f
+            intensity = defaultPortraitBlur
             flashEnabled = stored[3].toBoolean()
+            flashButton.text = if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF"
             intensityTitle.text = if (currentMode == EnhanceMode.PORTRAIT) "BACKGROUND BLUR" else "VIBRANCE POWER"
             intensityLabel.text = "${(intensity * 100).toInt()}%"
             refreshModes()
@@ -152,7 +158,8 @@ class MainActivity : AppCompatActivity() {
         card.addView(modeRow); root.addView(card); root.addView(space(8))
         val cameraControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         cameraControls.addView(action("↻  FLIP CAMERA", 0xFF35415F.toInt()) { switchCamera() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginEnd = dp(5) })
-        cameraControls.addView(action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF35415F.toInt()) { toggleFlash() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5); marginEnd = dp(5) })
+        flashButton = action(if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF", 0xFF35415F.toInt()) { toggleFlash() }
+        cameraControls.addView(flashButton, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5); marginEnd = dp(5) })
         cameraControls.addView(action("⚙ SETTINGS", 0xFF5A347F.toInt()) { showSaveSettings() }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { marginStart = dp(5) })
         root.addView(cameraControls); root.addView(space(6))
         blurPresetButton = action("✦  FOUR PORTRAIT BLUR PRESETS",0xFF663D9B.toInt()) { showBlurPresets() }; blurPresetButton.visibility = View.GONE
@@ -296,6 +303,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun toggleFlash() {
         flashEnabled = !flashEnabled
+        flashButton.text = if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF"
+        lifecycleScope.launch { withContext(Dispatchers.IO) { CameraSettings.writeFlashEnabled(this@MainActivity, flashEnabled) } }
         if (cameraProvider != null && lensFacing == CameraSelector.LENS_FACING_BACK) bindCamera()
         status.text = if (flashEnabled) "Flash enabled for rear camera" else "Flash disabled"
     }
@@ -407,9 +416,10 @@ class MainActivity : AppCompatActivity() {
     private fun showStartupModeSetting() {
         val modes = arrayOf("AI", "VIVID", "NORMAL", "PORTRAIT")
         AlertDialog.Builder(this).setTitle("Default startup mode")
-            .setSingleChoiceItems(modes, modes.indexOf(currentMode.name).coerceAtLeast(0)) { dialog, which ->
+            .setSingleChoiceItems(modes, modes.indexOf(startupMode).coerceAtLeast(0)) { dialog, which ->
                 lifecycleScope.launch {
                     withContext(Dispatchers.IO) { CameraSettings.writeStartupMode(this@MainActivity, modes[which]) }
+                    startupMode = modes[which]
                     status.text = "Startup mode saved: " + modes[which]
                 }
                 dialog.dismiss()
@@ -419,11 +429,12 @@ class MainActivity : AppCompatActivity() {
     private fun showDefaultBlurSetting() {
         val labels = arrayOf("Natural", "Medium", "Strong", "Maximum")
         val values = floatArrayOf(0.25f, 0.50f, 0.75f, 1f)
-        val selected = values.indices.minByOrNull { kotlin.math.abs(values[it] - intensity) } ?: 1
+        val selected = values.indices.minByOrNull { kotlin.math.abs(values[it] - defaultPortraitBlur) } ?: 1
         AlertDialog.Builder(this).setTitle("Default portrait blur")
             .setSingleChoiceItems(labels, selected) { dialog, which ->
                 lifecycleScope.launch {
                     withContext(Dispatchers.IO) { CameraSettings.writePortraitBlur(this@MainActivity, values[which]) }
+                    defaultPortraitBlur = values[which]
                     intensity = values[which]
                     intensityLabel.text = "${(intensity * 100).toInt()}%"
                     status.text = "Portrait blur preference saved"
@@ -437,6 +448,7 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this).setTitle("Flash on launch")
             .setSingleChoiceItems(choices, if (flashEnabled) 1 else 0) { dialog, which ->
                 flashEnabled = which == 1
+                flashButton.text = if (flashEnabled) "⚡ FLASH ON" else "⚡ FLASH OFF"
                 lifecycleScope.launch {
                     withContext(Dispatchers.IO) { CameraSettings.writeFlashEnabled(this@MainActivity, flashEnabled) }
                     if (cameraProvider != null) bindCamera()
